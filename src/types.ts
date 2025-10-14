@@ -12,10 +12,14 @@ export interface ViaProxyOpts {
     viaProxyLocation?: string;
     viaProxyWorkingDir?: string;
     autoUpdate?: boolean;
-    backendProxyUrl?: string;
+    viaProxyConfig?: Partial<ViaProxyConfig>;
     viaProxyStdoutCb?: (data: any) => void
     viaProxyStderrCb?: (data: any) => void
+}
 
+export interface ViaProxyConfig {
+    backendProxyUrl: string;
+    [key: string]: string | number | boolean;
 }
 
 

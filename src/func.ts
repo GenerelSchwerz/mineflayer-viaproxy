@@ -181,8 +181,13 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
     cmd = cmd + " --auth-method " + auth;
     cmd = cmd + " --proxy-online-mode " + "false";
 
-    if (options.backendProxyUrl) {
-      cmd = cmd + " --backend-proxy-url " + options.backendProxyUrl;
+    const cfg = options.viaProxyConfig ?? {};
+    for (const [key, value] of Object.entries(cfg)) {
+
+      // convert camelCase to kebab-case for keys.
+      const kebabKey = key.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+
+      cmd = cmd + " --" + kebabKey + " " + value
     }
 
     if (bedrock) {
