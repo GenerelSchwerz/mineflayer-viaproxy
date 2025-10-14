@@ -13,7 +13,8 @@ const {createBot} = require('../');
         // viaProxyStdoutCb: (data) => console.log(data.toString()),
 
         viaProxyConfig: {
-            backendProxyUrl: "socks5://vyrhcaww:dwnbbhgoewtt@82.27.247.251:5585"
+            backendProxyUrl: "socks5://vyrhcaww:dwnbbhgoewtt@82.27.247.251:5585",
+            ignoreProtocolTranslationErrors: true, // ignore-protocol-translation-errors
         }
 
     })
