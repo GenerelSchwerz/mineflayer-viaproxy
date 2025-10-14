@@ -103,5 +103,5 @@ export interface ViaProxyConfig {
 | Name              | Type    | Description                                                                         |          |                                                |
 | ----------------- | ------- | ----------------------------------------------------------------------------------- | -------- | ---------------------------------------------- |
 | `backendProxyUrl` | string  | The URL of the backend proxy to connect to. If none specified, it will not use one. |          |                                                |
-| `[key: string]`   | `string | number                                                                              | boolean` | Additional configuration options for ViaProxy. |
+| `[key: string]`   | `string | number | boolean` | Additional configuration options for ViaProxy. |
 
