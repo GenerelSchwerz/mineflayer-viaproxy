@@ -44,12 +44,21 @@ export async function loadNmpConfig(opts: BotOptions) {
 
     const sanitizedOpts = validateOptions(opts);
 
+
+    // Use your cache folder / username so tokens persist
+    const flow = new Authflow(opts.username, sanitizedOpts.profilesFolder, {
+       authTitle: Titles.MinecraftNintendoSwitch, deviceType: 'Nintendo', flow: 'live'
+    });
+
+
+    // This ensures the access token is fresh and the profile keys are fetched/cached
+   const mcMgr = await flow.getMinecraftJavaToken({fetchCertificates: true, fetchProfile: true});
+
+    // these should always be present since we're doing the authflow above.
     const caches = [];
     for await (const cacheName of extractCacheNames(opts)) {
         caches.push(cacheName);
     }
-
-    console.log("Found caches: ", caches);
 
     // confirm that 'live', 'mca', and 'xbl' are present
     const requiredCaches = ['live', 'mca', 'xbl'];
@@ -62,32 +71,19 @@ export async function loadNmpConfig(opts: BotOptions) {
     const cacheMap: Record<string, any> = {};
     for (const cacheName of caches) {
         const cacheFile = generateCacheFileName(sanitizedOpts.profilesFolder, cacheName, sanitizedOpts.username);
-        console.log(`Loading cache ${cacheName} from ${cacheFile}`);
         const data = await fs.readFile(cacheFile, 'utf-8');
         const parsed = JSON.parse(data);
         cacheMap[cacheName] = parsed;
     }
 
-
-
-    // Use your cache folder / username so tokens persist
-    const flow = new Authflow(opts.username, sanitizedOpts.profilesFolder, {
-       authTitle: Titles.MinecraftNintendoSwitch, deviceType: 'Nintendo', flow: 'live'
-    });
-
-    const mcMgr = await flow.getMinecraftJavaToken({fetchCertificates: true, fetchProfile: true});
-    // This ensures the access token is fresh and the profile keys are fetched/cached
-    
-
-    // --- from a5032f_mca-cache.json ---
+    // --- from mca-cache.json ---
     const mca = cacheMap['mca'];
     const mcAccessToken = mca.mca.access_token;
     const mcExpireTimeMs = mca.mca.obtainedOn + mca.mca.expires_in * 1000;
-    // mca.mca.pfd[0] holds the Java profile id & name in your file.
-    const mcProfileId = mca.mca.username;         // "9e88ba5b-39b4-46e2-b06d-c67b6fe87233"
-    const mcProfileName = sanitizedOpts.username       // "Generel_Schwerz"
+    const mcProfileId = mca.mca.username;   
+    const mcProfileName = sanitizedOpts.username      
 
-    // --- from a5032f_xbl-cache.json ---
+    // --- from xbl-cache.json ---
     const xbl = cacheMap['xbl'];
     const userToken = xbl.userToken.Token;
     const userTokenExp = Date.parse(xbl.userToken.NotAfter);
@@ -97,7 +93,7 @@ export async function loadNmpConfig(opts: BotOptions) {
     const xstsUserHash = xbl["30f115"].userHash;       // also in DisplayClaims.xui[0].uhs
     const deviceToken = xbl.deviceToken.Token;        // DID is in deviceToken.DisplayClaims.xdi.did
 
-    // --- from a5032f_live-cache.json ---
+    // --- from live-cache.json ---
     const live = cacheMap['live'];
     const msaAccessToken = live.token.access_token;
     const msaRefreshToken = live.token.refresh_token;
@@ -105,12 +101,13 @@ export async function loadNmpConfig(opts: BotOptions) {
 
     const keyPair = crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' })
 
+    // --- from mcMgr.certificates.profileKeys ---
     const publicKey = mcMgr.certificates.profileKeys.public.export({ type: 'spki', format: 'pem' });
     const privateKey = mcMgr.certificates.profileKeys.private.export({ type: 'pkcs8', format: 'pem' });
 
     const expiresOn = (mcMgr.certificates as any).profileKeys.expiresOn;
     const publicKeySignature = (mcMgr.certificates.profileKeys as any).signatureV2.toString('base64');
-    const legacyPublicKeySignature = (mcMgr.certificates.profileKeys as any).signature.toString('base64')    
+    const legacyPublicKeySignature = (mcMgr.certificates.profileKeys as any).signature.toString('base64');
 
     const combined = {
         accountsV3: [
@@ -121,7 +118,7 @@ export async function loadNmpConfig(opts: BotOptions) {
                         id: mcProfileId,
                         name: mcProfileName,
                         // Missing from caches; you’d fetch from Mojang/Textures given uuid:
-                        skinUrl: "TODO_FETCH_FROM_PROFILE_API",
+                        skinUrl: mcMgr.profile.skins[0]?.url || "",
                         mcToken: {
                             accessToken: mcAccessToken,
                             tokenType: "Bearer",
@@ -177,8 +174,6 @@ export async function loadNmpConfig(opts: BotOptions) {
         }
     };
 
-
-    console.log("Constructed viaproxy config: ", combined.accountsV3[0]);
     return combined as viaproxyTypes.ViaProxySettings;
 }
 
