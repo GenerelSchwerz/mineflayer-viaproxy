@@ -41,7 +41,7 @@ async function detectVersion(host: string | undefined, port: number | undefined)
 
   host = host ?? "127.0.0.1";
 
-  if ( port != null && isNaN(port)) {
+  if (port != null && isNaN(port)) {
     port = undefined;
   }
 
@@ -153,8 +153,11 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
   let bot!: Bot;
 
   if (useViaProxy) {
-    debug(`ViaProxy is needed for version ${ver}. Launching it.`);
-
+    if (options.forceViaProxy) {
+      debug(`forceViaProxy is enabled. Using ViaProxy for version ${ver}.`);
+    } else {
+      debug(`ViaProxy is needed for version ${ver}. Launching it.`);
+    }
     const cleanupProxy = () => {
       if (bot != null && bot.viaProxy != null && !bot.viaProxy.killed) {
         bot.viaProxy.kill("SIGINT");
@@ -217,12 +220,12 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
     else {
       // newOpts.auth = "offline";
 
-      const newSetup  = await loadNmpConfig(newOpts);
+      const newSetup = await loadNmpConfig(newOpts);
       await modifyProxySaves(wantedCwd, newSetup);
       const idx = await identifyAccount(options.username, bedrock, javaLoc, location, wantedCwd);
       cmd = cmd + " --proxy-online-mode " + "true";
       cmd = cmd + " --minecraft-account-index" + ` ${idx}`;
-      
+
     }
 
     debug(`Launching ViaProxy with cmd: ${cmd}`);
@@ -237,7 +240,7 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
 
     await new Promise<void>((resolve, reject) => {
       const errorBuffer: string[] = []; // Buffer to collect error messages
-    
+
       const stdOutListener = (data: string) => {
         if (data.includes("started successfully")) {
           debug("ViaProxy started successfully");
@@ -250,17 +253,17 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
             openAuthLogin(bot).then(resolve);
           }, 1000);
         }
-    
+
         if (data.includes("main/WARN")) {
           const d = data.toString().split("[main/WARN]")[1].trim();
           debug(d);
         }
       };
-    
+
       const stdErrListener = (data: any) => {
         errorBuffer.push(data.toString()); // Accumulate error messages
       };
-          
+
       // Capture process exit to handle errors
       viaProxy!.on("close", (code: number) => {
         if (code !== 0) {
@@ -269,7 +272,7 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
           reject(new Error(`ViaProxy failed to start. Exit code: ${code}. Error log: \n${completeErrorMessage}`));
         }
       });
-    
+
       viaProxy!.on("error", (err: any) => {
         // In case of other errors, reject with the error and accumulated buffer
         const completeErrorMessage = errorBuffer.join('\n');
