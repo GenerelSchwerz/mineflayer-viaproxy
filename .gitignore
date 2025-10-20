@@ -6,5 +6,7 @@ dist/
 
 **/viaproxy/
 
+logs
+
 examples/
 !examples/test.js
