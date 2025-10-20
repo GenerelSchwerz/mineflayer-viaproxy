@@ -23,3 +23,4 @@ export interface ViaProxyConfig {
 }
 
 
+export { ViaProxySettings} from './config'

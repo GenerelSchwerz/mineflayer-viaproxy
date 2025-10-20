@@ -5,8 +5,24 @@ import { BASE_VIAPROXY_URL, BASE_GEYSER_URL, VIA_PROXY_CMD } from "./constants";
 import { exec } from "child_process";
 
 import jsyaml from "js-yaml";
+import { ClientOptions } from "minecraft-protocol";
+import path from "path";
+import { ViaProxySettings, ViaProxyOpts } from "./types";
 
 const debug = require("debug")("mineflayer-viaproxy");
+
+
+
+const minecraftFolderPath = require("minecraft-folder-path");
+
+export function validateOptions(options: ClientOptions): ClientOptions & { profilesFolder: string } {
+  if (options.profilesFolder == null) {
+    options.profilesFolder = path.join(minecraftFolderPath, "nmp-cache");
+  }
+  return options as any;
+}
+
+
 
 export async function openAuthLogin(bot: Bot) {
   const listener = (packet: any) => {
@@ -376,11 +392,21 @@ export async function openViaProxyGUI(javaLoc: string, fullpath: string, cwd: st
   });
 }
 
-export function loadProxySaves(cwd: string) {
+export function loadProxySaves(cwd: string): ViaProxySettings {
   const loc = join(cwd, "saves.json");
   if (!existsSync(loc)) throw new Error("No saves found.");
 
   return JSON.parse(readFileSync(loc, "utf-8"));
+}
+
+export function modifyProxySaves(cwd: string, data: ViaProxySettings) {
+  const loc = join(cwd, "saves.json");
+  const saves = loadProxySaves(cwd);
+
+  // Update the saves with the new data
+  Object.assign(saves, data);
+
+  writeFileSync(loc, JSON.stringify(saves, null, 2), "utf-8");
 }
 
 export async function identifyAccount(
@@ -410,7 +436,7 @@ export async function identifyAccount(
   const accountTypes = Object.keys(saves).filter((k) => k.startsWith("account"));
   const newestAccounts = accountTypes.map((k) => parseInt(k.split("V")[1])).sort((a, b) => a - b);
   const newestKey = newestAccounts[newestAccounts.length - 1];
-  const accounts: Record<string, any>[] = saves[`accountsV${newestKey}`];
+  const accounts: Record<string, any>[] = (saves as any)[`accountsV${newestKey}`];
 
   switch (newestKey) {
     case 3: {

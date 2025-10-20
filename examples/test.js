@@ -5,20 +5,26 @@ const {createBot} = require('../');
     const bot = await createBot({
         host: process.argv[2],
         port: parseInt(process.argv[3]),
-        auth: "offline",
-        username: process.argv[4] ?? "viaproxytest",
+        auth: "microsoft",
+        username: process.argv[4] ?? "Generel_Schwerz",
         forceViaProxy: true,
+        profilesFolder: "./cache",
 
         // viaProxyStderrCb: (data) => console.log(data.toString()),
         // viaProxyStdoutCb: (data) => console.log(data.toString()),
 
         viaProxyConfig: {
-            backendProxyUrl: "socks5://vyrhcaww:dwnbbhgoewtt@82.27.247.251:5585",
+            // targetVersion: "1.21-1.21.1",
+            // backendProxyUrl: "socks5://vyrhcaww:dwnbbhgoewtt@82.27.247.251:5585",
             ignoreProtocolTranslationErrors: true, // ignore-protocol-translation-errors
         }
 
     })
-    
+
+    bot.on('login', () => {
+        console.log("Logged in");
+    });
+
     bot.on("spawn", async () => {
         console.log("Bot spawned");
         await bot.waitForTicks(20);

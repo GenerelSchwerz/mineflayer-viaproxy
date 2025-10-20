@@ -5,12 +5,13 @@ import { supportedVersions } from "minecraft-data";
 import { spawn } from "child_process";
 import { AuthType, ViaProxyOpts } from "./types";
 import { openAuthLogin } from "./openAuthMod";
-import { findOpenPort, getSupportedMCVersions, identifyAccount, verifyViaProxyLoc } from "./utils";
+import { findOpenPort, getSupportedMCVersions, identifyAccount, verifyViaProxyLoc, modifyProxySaves } from "./utils";
 import path from "path";
 import { existsSync, mkdirSync } from "fs";
 
 import "prismarine-registry";
 import { VIA_PROXY_CMD } from "./constants";
+import { loadNmpConfig } from "./convNmp";
 
 const debug = require("debug")("mineflayer-viaproxy");
 
@@ -163,6 +164,8 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
 
 
 
+
+
     const wantedCwd = options.viaProxyWorkingDir ?? path.join(process.cwd(), "viaproxy");
 
     if (!existsSync(wantedCwd)) {
@@ -179,7 +182,6 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
     cmd = cmd + " --target-address " + `${rHost}:${rPort}`;
     cmd = cmd + " --bind-address " + `127.0.0.1:${port}`;
     cmd = cmd + " --auth-method " + auth;
-    cmd = cmd + " --proxy-online-mode " + "false";
 
     const cfg = options.viaProxyConfig ?? {};
     for (const [key, value] of Object.entries(cfg)) {
@@ -208,13 +210,24 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
     newOpts.port = port;
     newOpts.version = currentLatestVersion;
 
-    if (auth !== AuthType.ACCOUNT) newOpts.auth = "offline";
-    else {
+    if (auth !== AuthType.ACCOUNT) {
       newOpts.auth = "offline";
+      cmd = cmd + " --proxy-online-mode " + "false";
+
+    }
+    else {
+      // newOpts.auth = "offline";
+
+      const newSetup  = await loadNmpConfig(newOpts);
+      await modifyProxySaves(wantedCwd, newSetup);
+
       const idx = await identifyAccount(options.username, bedrock, javaLoc, location, wantedCwd);
+      cmd = cmd + " --proxy-online-mode " + "true";
       cmd = cmd + " --minecraft-account-index" + ` ${idx}`;
+      
     }
 
+    console.debug(newOpts)
     debug(`Launching ViaProxy with cmd: ${cmd}`);
 
     const viaProxy = spawn(cmd, { shell: true, cwd: wantedCwd });

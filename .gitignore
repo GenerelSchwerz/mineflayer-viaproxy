@@ -5,3 +5,6 @@ dist/
 *.lock
 
 **/viaproxy/
+
+examples/
+!examples/test.js

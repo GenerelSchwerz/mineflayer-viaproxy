@@ -16,7 +16,8 @@
     "js-yaml": "^4.1.0",
     "minecraft-data": "^3.89.0",
     "minecraft-protocol": "^1.57.0",
-    "mineflayer": "^4.29.0"
+    "mineflayer": "^4.29.0",
+    "uuid": "^13.0.0"
   },
   "scripts": {
     "build": "tsc",
