@@ -15,7 +15,7 @@ const {createBot} = require('../');
 
         viaProxyConfig: {
             // targetVersion: "1.21-1.21.1",
-            // backendProxyUrl: "socks5://vyrhcaww:dwnbbhgoewtt@82.27.247.251:5585",
+            // backendProxyUrl: "",
             ignoreProtocolTranslationErrors: true, // ignore-protocol-translation-errors
         }
 
