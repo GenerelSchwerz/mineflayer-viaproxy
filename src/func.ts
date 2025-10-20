@@ -213,27 +213,23 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
     if (auth !== AuthType.ACCOUNT) {
       newOpts.auth = "offline";
       cmd = cmd + " --proxy-online-mode " + "false";
-
     }
     else {
       // newOpts.auth = "offline";
 
       const newSetup  = await loadNmpConfig(newOpts);
       await modifyProxySaves(wantedCwd, newSetup);
-
       const idx = await identifyAccount(options.username, bedrock, javaLoc, location, wantedCwd);
       cmd = cmd + " --proxy-online-mode " + "true";
       cmd = cmd + " --minecraft-account-index" + ` ${idx}`;
       
     }
 
-    console.debug(newOpts)
     debug(`Launching ViaProxy with cmd: ${cmd}`);
 
     const viaProxy = spawn(cmd, { shell: true, cwd: wantedCwd });
 
     if (options.viaProxyStdoutCb) viaProxy.stdout.on("data", options.viaProxyStdoutCb);
-
     if (options.viaProxyStderrCb) viaProxy.stderr.on("data", options.viaProxyStderrCb);
 
     // added for robustness, just to be sure.
