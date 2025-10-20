@@ -9,6 +9,11 @@ Why? Because I'm tired of people asking for version updates.
 If you have issues, join [here](https://discord.gg/g3w4G88y) for support.
 Alternatively, [here](https://discord.gg/prismarinejs-413438066984747026) for general mineflayer support.
 
+
+### Prerequisites
+* Node.js v16 or higher
+* Java Runtime Environment (JRE) installed and accessible via command line, preferably version 17 or higher.
+
 ### TODOS
 
 * [x] Support bedrock versions
