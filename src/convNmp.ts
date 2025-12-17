@@ -196,7 +196,7 @@ export function convToV4(code: viaproxyTypes.ViaProxyV3Config): viaproxyTypes.Vi
             const mcAcount = account as viaproxyTypes.ConfigV3.MicrosoftAccount
             const newAccount: viaproxyTypes.ConfigV4.MicrosoftAccountV4 = {
                 accountType: "net.raphimc.viaproxy.saves.impl.accounts.MicrosoftAccount",
-                deviceId: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.initialXblSession.xblDeviceToken.deviceId,
+                deviceId: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.initialXblSession.xblDeviceToken.id,
                 _saveVersion: 1,
                 msaApplicationConfig: {
                     _saveVersion: 1,
