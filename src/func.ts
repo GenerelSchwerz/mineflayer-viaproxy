@@ -219,10 +219,18 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
     }
     else {
       // newOpts.auth = "offline";
+      
+      const initialCheck = await identifyAccount(options.username, bedrock, javaLoc, location, wantedCwd, 0, false);
+      if (initialCheck === -1) {
+        debug(`No account found for username "${options.username}". Replacing proxy saves.`);
+          const newSetup = await loadNmpConfig(newOpts);
+          await modifyProxySaves(wantedCwd, javaLoc, location, newSetup);
+      } else {
+        debug(`Account found for username "${options.username}". No need to replace proxy saves.`);
+      }
 
-      const newSetup = await loadNmpConfig(newOpts);
-      await modifyProxySaves(wantedCwd, newSetup);
-      const idx = await identifyAccount(options.username, bedrock, javaLoc, location, wantedCwd);
+      const idx = await identifyAccount(options.username, bedrock, javaLoc, location, wantedCwd, 0, true);
+      debug(`Identified account index for username "${options.username}" is ${idx}.`);
       cmd = cmd + " --proxy-online-mode " + "true";
       cmd = cmd + " --minecraft-account-index" + ` ${idx}`;
 

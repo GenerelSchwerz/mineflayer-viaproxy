@@ -40,7 +40,7 @@ export async function* extractCacheNames(opts: BotOptions) {
 }
 
 
-export async function loadNmpConfig(opts: BotOptions) {
+export async function loadNmpConfig(opts: BotOptions): Promise<viaproxyTypes.ViaProxyV3Config> {
 
     const sanitizedOpts = validateOptions(opts);
 
@@ -109,6 +109,7 @@ export async function loadNmpConfig(opts: BotOptions) {
     const publicKeySignature = (mcMgr.certificates.profileKeys as any).signatureV2.toString('base64');
     const legacyPublicKeySignature = (mcMgr.certificates.profileKeys as any).signature.toString('base64');
 
+
     const combined = {
         accountsV3: [
             {
@@ -171,10 +172,110 @@ export async function loadNmpConfig(opts: BotOptions) {
             },
         ],
         ui: {
-        }
+        } as viaproxyTypes.UISettings,
     };
 
-    return combined as viaproxyTypes.ViaProxySettings;
+    return combined as viaproxyTypes.ViaProxyV3Config;
 }
 
+
+
+
+
+export function convToV4(code: viaproxyTypes.ViaProxyV3Config): viaproxyTypes.ViaProxyV4Config {
+
+
+    const deviceEc = crypto.generateKeyPairSync("ec", { namedCurve: "P-256" });
+    const devicePublicKeyB64 = deviceEc.publicKey.export({ type: "spki", format: "der" }).toString("base64");
+    const devicePrivateKeyB64 = deviceEc.privateKey.export({ type: "pkcs8", format: "der" }).toString("base64");
+
+    const accountsV4 = [] as any[]
+    for (const account of code.accountsV3) {
+        const accountV4 = { ...account }
+        if (account.accountType === 'net.raphimc.viaproxy.saves.impl.accounts.MicrosoftAccount') {
+            const mcAcount = account as viaproxyTypes.ConfigV3.MicrosoftAccount
+            const newAccount: viaproxyTypes.ConfigV4.MicrosoftAccountV4 = {
+                accountType: "net.raphimc.viaproxy.saves.impl.accounts.MicrosoftAccount",
+                deviceId: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.initialXblSession.xblDeviceToken.deviceId,
+                _saveVersion: 1,
+                msaApplicationConfig: {
+                    _saveVersion: 1,
+                     clientId: "00000000402b5328",
+                scope: "service::user.auth.xboxlive.com::MBI_SSL",
+                environment: "LIVE",
+                },
+                deviceType: "Win32",
+                deviceKeyPair: {
+                    algorithm: "EC",
+                    publicKey: devicePublicKeyB64,
+                    privateKey: devicePrivateKeyB64,
+                    // publicKey: mcAcount.microsoftDevice.devicePublicKey,
+                    // privateKey: mcAcount.microsoftDevice.devicePrivateKey,
+                },
+                msaToken: {
+                    _saveVersion: 1,
+                    expireTimeMs: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.initialXblSession.msaToken.expireTimeMs,
+                    accessToken: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.initialXblSession.msaToken.accessToken,
+                    refreshToken: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.initialXblSession.msaToken.refreshToken,
+                },
+                xblUserToken: {
+                    _saveVersion: 1,
+                    expireTimeMs: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.userToken.expireTimeMs,
+                    token: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.userToken.token,
+                    userHash: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.userToken.userHash,
+                },
+                xblTitleToken: {
+                    _saveVersion: 1,
+                    expireTimeMs: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.titleToken.expireTimeMs,
+                    token: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.titleToken.token,
+                    titleId: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.titleToken.titleId,
+                },
+                javaXstsToken: {
+                    _saveVersion: 1,
+                    expireTimeMs: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.userToken.expireTimeMs,
+                    token: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.userToken.token,
+                    userHash: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.userToken.userHash,
+                },
+                minecraftToken: {
+                    _saveVersion: 1,
+                    expireTimeMs: mcAcount.javaSession.mcProfile.mcToken.expireTimeMs,
+                    type: mcAcount.javaSession.mcProfile.mcToken.tokenType,
+                    token: mcAcount.javaSession.mcProfile.mcToken.accessToken,
+                },
+                minecraftProfile: {
+                    _saveVersion: 1,
+                    id: mcAcount.javaSession.mcProfile.id,
+                    name: mcAcount.javaSession.mcProfile.name,
+                },
+                minecraftPlayerCertificates: {
+                    _saveVersion: 1,
+                    expireTimeMs: mcAcount.javaSession.playerCertificates.expireTimeMs,
+                    keyPair: {
+                        algorithm: "RSA",
+                        publicKey: mcAcount.javaSession.playerCertificates.publicKey,
+                        privateKey: mcAcount.javaSession.playerCertificates.privateKey,
+                    },
+                    publicKeySignature: mcAcount.javaSession.playerCertificates.publicKeySignature,
+                    legacyPublicKeySignature: mcAcount.javaSession.playerCertificates.legacyPublicKeySignature,
+                },
+                xblDeviceToken: {
+                    _saveVersion: 1,
+                    expireTimeMs: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.initialXblSession.xblDeviceToken.expireTimeMs,
+                    token: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.initialXblSession.xblDeviceToken.token,
+                    deviceId: mcAcount.javaSession.mcProfile.mcToken.xblSisuAuthentication.initialXblSession.xblDeviceToken.deviceId,
+                },  
+
+            }
+        accountsV4.push(newAccount)
+        } else {
+            // leave as is for now.
+            accountsV4.push(accountV4)
+        }
+      
+    }
+    return {
+        accountsV4: accountsV4,
+        ui: code.ui,
+    }
+}
 

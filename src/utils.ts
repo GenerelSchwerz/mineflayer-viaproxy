@@ -8,6 +8,11 @@ import jsyaml from "js-yaml";
 import { ClientOptions } from "minecraft-protocol";
 import path from "path";
 import { ViaProxySettings, ViaProxyOpts } from "./types";
+import { AccountV3, BedrockAccount, MicrosoftAccount } from "./types/accountsV3";
+import { AccountV4, BedrockAccountV4, MicrosoftAccountV4 } from "./types/accountsV4";
+import jwt from "jsonwebtoken";
+import { ViaProxyV3Config, ViaProxyV4Config } from "./types/config";
+import { convToV4 } from "./convNmp";
 
 const debug = require("debug")("mineflayer-viaproxy");
 
@@ -62,7 +67,7 @@ function viaProxyAvailable(cwd: string, use8: boolean): string | null {
   // don't match the +java8 part, as it's optional.
   // ViaProxy-3.3.4-SNAPSHOT.jar
   // ViaProxy-3.3.3-RELEASE.jar
-  
+
   // only allow java8 if use8 is true.
   // do not accept any jars that do NOT have +java8 if use8 is true.
   let regex;
@@ -154,7 +159,7 @@ export async function getSupportedMCVersions(javaLoc: string, cwd: string, filen
 
 
   await new Promise<void>((resolve, reject) => {
-    let stdOutListener =  (data: string) => {
+    let stdOutListener = (data: string) => {
       const strData = data.toString();
       if (!strData.includes("===") && !seeStartVersions) return;
       else if (strData.includes("===") && seeStartVersions) {
@@ -163,12 +168,12 @@ export async function getSupportedMCVersions(javaLoc: string, cwd: string, filen
         resolve();
         return;
       }
-  
+
       if (strData.includes("===")) {
         seeStartVersions = true;
         return;
       }
-  
+
       // \x1B[34m[13:52:06]\x1B[m \x1B[32m[main/INFO]\x1B[m \x1B[36m(ViaProxy)\x1B[m \x1B[0m1.20.2\n\x1B[m
       // get 1.20.2
       const split = strData.split("\x1B[0m")
@@ -176,7 +181,7 @@ export async function getSupportedMCVersions(javaLoc: string, cwd: string, filen
       versions.push(version);
       // resolve();
     }
-  
+
     let stdErrListener = (data: string) => {
       console.error(data.toString());
       test.stdout?.removeListener("data", stdOutListener);
@@ -392,22 +397,163 @@ export async function openViaProxyGUI(javaLoc: string, fullpath: string, cwd: st
   });
 }
 
-export function loadProxySaves(cwd: string): ViaProxySettings {
+export async function loadProxySaves(cwd: string, javaLoc: string, location: string): Promise<ViaProxySettings> {
   const loc = join(cwd, "saves.json");
-  if (!existsSync(loc)) throw new Error("No saves found.");
+  if (!existsSync(loc)) {
 
-  return JSON.parse(readFileSync(loc, "utf-8"));
+    // dummy run to create the saves.json file.
+    debug("No saves.json found. Creating one by running ViaProxy CLI.");
+    debug(`Running command: ${VIA_PROXY_CMD(javaLoc, location, true)}`);
+    const process = exec(VIA_PROXY_CMD(javaLoc, location, true), { cwd: cwd });
+
+    await new Promise((resolve) => setTimeout(resolve, 3000)); // wait 3 seconds for the file to be created.
+
+    process.kill();
+
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 2000)); // wait 2 seconds to ensure file is written.
+    const data = JSON.parse(readFileSync(loc, "utf-8"));
+
+    return data;
+  }
+
+  const data = JSON.parse(readFileSync(loc, "utf-8"));
+  debug("Loaded existing saves.json file for ViaProxy.");
+  return data;
 }
 
-export function modifyProxySaves(cwd: string, data: ViaProxySettings) {
+export async function modifyProxySaves(cwd: string, javaLoc: string, location: string, data: ViaProxyV3Config) {
   const loc = join(cwd, "saves.json");
-  const saves = loadProxySaves(cwd);
+  const saves = await loadProxySaves(cwd, javaLoc, location);
 
-  // Update the saves with the new data
-  Object.assign(saves, data);
+  // assume v4 now.
+  const { newest, key } = latestAccountsKey(saves);
+  switch (newest) {
+    case 3:
+      const dataTyped = data as any as ViaProxyV3Config
+      const data1 = (saves as any)[key] as AccountV3[];
+      data1.push(...dataTyped.accountsV3);
+      break;
+    case 4:
+      const dataTyped4 = convToV4(data as ViaProxyV3Config);
+      const data4 = (saves as any)[key] as AccountV4[];
+      data4.push(...dataTyped4.accountsV4);
+      break;
+    default:
+      throw new Error(`Unsupported accounts version: ${newest}`);
+  }
 
   writeFileSync(loc, JSON.stringify(saves, null, 2), "utf-8");
 }
+
+
+
+type AccountType = { accountType: string };
+
+type LoadSaves = Record<string, unknown>;
+
+// ---- small utilities ----
+
+function assertDepth(depth: number) {
+  if (depth < 0) throw new Error("Invalid depth received (below zero). This should never be manually specified.");
+}
+
+function latestAccountsKey(saves: LoadSaves) {
+  const versions = Object.keys(saves)
+    .filter((k) => k.startsWith("accountsV"))
+    .map((k) => Number(k.slice("accountsV".length)))
+    .filter((n) => Number.isFinite(n))
+    .sort((a, b) => a - b);
+
+  if (versions.length === 0) throw new Error("No accountsV* keys found in saves.json.");
+  const newest = versions[versions.length - 1];
+  return { newest, key: `accountsV${newest}` as const };
+}
+
+function isBedrock(acc: AccountType): acc is BedrockAccount {
+  return acc.accountType?.includes("Bedrock");
+}
+function isMicrosoft(acc: AccountType): acc is MicrosoftAccount {
+  return acc.accountType?.includes("Microsoft");
+}
+
+/**
+ * Generic “try once, optionally open GUI and retry once” wrapper.
+ * - If depth >= 1: never tries to open, just throws/returns
+ * - If open=false: never opens, returns -1
+ */
+async function withSingleRetry<T>(
+  depth: number,
+  open: boolean,
+  onOpen: () => Promise<void>,
+  action: () => Promise<T>
+): Promise<T> {
+  try {
+    return await action();
+  } catch (err) {
+    if (depth >= 1) throw err;
+    if (!open) throw err;
+    await onOpen();
+    return await action();
+  }
+}
+
+// ---- per-version name extraction ----
+
+function getV3Names(accounts: AccountV3[]) {
+  const bedrockNames: string[] = [];
+  const javaNames: string[] = [];
+
+  for (const acc of accounts) {
+    if (isBedrock(acc)) bedrockNames.push(acc.bedrockSession?.mcChain?.displayName);
+    else if (isMicrosoft(acc)) javaNames.push(acc.javaSession?.mcProfile?.name);
+  }
+
+  return {
+    bedrockNames: bedrockNames.filter(Boolean),
+    javaNames: javaNames.filter(Boolean),
+    findBedrockIndex: (username: string) =>
+      accounts.findIndex((a) => isBedrock(a) && a.bedrockSession?.mcChain?.displayName === username),
+    findJavaIndex: (username: string) =>
+      accounts.findIndex((a) => isMicrosoft(a) && a.javaSession?.mcProfile?.name === username),
+  };
+}
+
+function getV4Names(accounts: AccountV4[]) {
+  const bedrockNames: string[] = [];
+  const javaNames: string[] = [];
+
+  for (const acc of accounts) {
+    if (isBedrock(acc)) {
+      const jwt1 = acc.minecraftCertificateChain?.identityJwt;
+      if (!jwt1) continue;
+
+      const decoded = jwt.decode(jwt1, { complete: true });
+      const displayName = decoded ? (decoded.payload as any)?.extraData?.displayName : undefined;
+      if (displayName) bedrockNames.push(displayName);
+    } else if (isMicrosoft(acc)) {
+      const name = acc.minecraftProfile?.name;
+      if (name) javaNames.push(name);
+    }
+  }
+
+  return {
+    bedrockNames,
+    javaNames,
+    // In V4 you extracted bedrock names from JWT; to find the index you need to re-decode per account
+    findBedrockIndex: (username: string) =>
+      accounts.findIndex((acc) => {
+        if (!isBedrock(acc)) return false;
+        const jwt1 = acc.minecraftCertificateChain?.identityJwt;
+        const decoded = jwt1 ? jwt.decode(jwt1, { complete: true }) : null;
+        const dn = decoded ? (decoded.payload as any)?.extraData?.displayName : undefined;
+        return dn === username;
+      }),
+    findJavaIndex: (username: string) =>
+      accounts.findIndex((acc) => isMicrosoft(acc) && acc.minecraftProfile?.name === username),
+  };
+}
+
+// ---- main function ----
 
 export async function identifyAccount(
   username: string,
@@ -415,84 +561,85 @@ export async function identifyAccount(
   javaLoc: string,
   location: string,
   wantedCwd: string,
-  depth = 0
+  depth = 0,
+  open = true
 ): Promise<number> {
-  if (depth < 0) {
-    throw new Error("Invaid depth received (below zero). This should never be manually specified.");
-  }
+  assertDepth(depth);
 
-  let saves;
-  try {
-    saves = loadProxySaves(wantedCwd);
-  } catch (err) {
-    if (depth >= 1) {
-      throw err;
-    }
-    debug("No saves found. Opening GUI.");
+  const onOpen = async () => {
+    debug(`Opening GUI.\nLocation: ${location}`);
     await openViaProxyGUI(javaLoc, location, wantedCwd);
-    return await identifyAccount(username, bedrock, javaLoc, location, wantedCwd, depth + 1);
-  }
-  
-  const accountTypes = Object.keys(saves).filter((k) => k.startsWith("account"));
-  const newestAccounts = accountTypes.map((k) => parseInt(k.split("V")[1])).sort((a, b) => a - b);
-  const newestKey = newestAccounts[newestAccounts.length - 1];
-  const accounts: Record<string, any>[] = (saves as any)[`accountsV${newestKey}`];
+  };
 
-  switch (newestKey) {
-    case 3: {
-      // get all bedrock usernames using .reduce()
-
-      if (accounts.length === 0) {
-        if (depth >= 1) {
-          throw new Error("No accounts found.");
-        }
-        debug(`No users in saves.json found Opening GUI.\nLocation: ${location}`);
-        await openViaProxyGUI(javaLoc, location, wantedCwd);
-        return await identifyAccount(username, bedrock, javaLoc, location, wantedCwd, depth + 1);
-      }
-
-      const bdAccNames: string[] = []; //accounts.reduce((prev, cur) => (cur.accountType.includes("Bedrock") ? prev.push(cur.bedrockSession.mcChain.displayName) && prev : prev), []) as unknown as string[];
-      const msAccNames: string[] = []; //accounts.reduce((prev, cur) => (cur.accountType.includes("Microsoft") ? prev.push(cur.javaSession.mcProfile.name) && prev : prev), []) as unknown as string[];
-
-      for (const acc of accounts) {
-        if (acc.accountType.includes("Bedrock")) bdAccNames.push(acc.bedrockSession.mcChain.displayName);
-        else if (acc.accountType.includes("Microsoft")) msAccNames.push(acc.javaSession.mcProfile.name);
-      }
-
-      debug(`Available Bedrock users: ${bdAccNames.length > 0 ? bdAccNames.join(", ") : "None"}`);
-      debug(`Available Java users: ${msAccNames.length > 0 ? msAccNames.join(", ") : "None"}`);
-
-      if (bedrock) {
-        if (bdAccNames.length === 0 || !bdAccNames.includes(username)) {
-          if (depth >= 1) {
-            if (bdAccNames.length === 0) throw new Error("No bedrock accounts found (even after opening GUI).");
-            else throw new Error(`No Bedrock account saved with the account name ${username}.\nOptions: ${bdAccNames.join(", ")}`);
-          }
-          await openViaProxyGUI(javaLoc, location, wantedCwd);
-          return await identifyAccount(username, bedrock, javaLoc, location, wantedCwd, depth + 1);
-        }
-
-        // console.log(accounts.map(acc => acc.bedrockSession.mcChain.displayName))
-        const idx = accounts.findIndex((acc) => acc.bedrockSession?.mcChain.displayName === username);
-        return idx;
-      } else {
-        if (msAccNames.length === 0 || !msAccNames.includes(username)) {
-          if (depth >= 1) {
-            if (msAccNames.length === 0) throw new Error("No Microsoft accounts found.");
-            else throw new Error(`No Microsoft account saved with the account name ${username}.\nOptions: ${msAccNames.join(", ")}`);
-          }
-          await openViaProxyGUI(javaLoc, location, wantedCwd);
-          return await identifyAccount(username, bedrock, javaLoc, location, wantedCwd, depth + 1);
-        }
-
-        const idx = accounts.findIndex((acc) => acc.javaSession?.mcProfile.name === username);
-        return idx;
-      }
+  // load saves.json, retry once via GUI if configured
+  const saves = await withSingleRetry(
+    depth,
+    open,
+    onOpen,
+    async () => await loadProxySaves(wantedCwd, javaLoc, location)
+  ).catch(async (err) => {
+    // match your original behavior: if load fails and open=false return -1, otherwise throw
+    if (!open && depth === 0) {
+      debug(`Failed to load saves.json. Not opening GUI as 'open' is false.`);
+      return null;
     }
-    default:
-      throw new Error(`Unsupported account version: ${newestKey}.`);
+    throw err;
+  });
+
+  if (saves == null) return -1;
+
+  const { newest, key } = latestAccountsKey(saves);
+  const accounts = (saves as any)[key] as any[];
+
+  // empty accounts handling (same behavior for both versions)
+  if (!Array.isArray(accounts) || accounts.length === 0) {
+    if (depth >= 1) throw new Error("No accounts found.");
+    if (!open) {
+      debug(`No users in saves.json found. Not opening GUI as 'open' is false.`);
+      return -1;
+    }
+    debug(`No users in saves.json found. Opening GUI.`);
+    await onOpen();
+    return identifyAccount(username, bedrock, javaLoc, location, wantedCwd, depth + 1, open);
   }
+
+  // pick version-specific extraction + index finding
+  const helper =
+    newest === 3 ? getV3Names(accounts as AccountV3[]) :
+    newest === 4 ? getV4Names(accounts as AccountV4[]) :
+    null;
+
+  if (!helper) throw new Error(`Unsupported account version: ${newest}.`);
+
+  debug(`Available Bedrock users: ${helper.bedrockNames.length ? helper.bedrockNames.join(", ") : "None"}`);
+  debug(`Available Java users: ${helper.javaNames.length ? helper.javaNames.join(", ") : "None"}`);
+
+  // validate + maybe open GUI once (same logic for bedrock and java)
+  const names = bedrock ? helper.bedrockNames : helper.javaNames;
+  const label = bedrock ? "Bedrock" : "Microsoft";
+
+  const exists = names.includes(username);
+  if (!exists) {
+    if (depth >= 1) {
+      if (names.length === 0) throw new Error(`No ${label} accounts found${bedrock ? " (even after opening GUI)" : ""}.`);
+      throw new Error(`No ${label} account saved with the account name ${username}.\nOptions: ${names.join(", ")}`);
+    }
+
+    if (!open) {
+      debug(`No ${label} account saved with the account name ${username}. Not opening GUI as 'open' is false.`);
+      return -1;
+    }
+
+    debug(`No ${label} account saved with the account name ${username}. Opening GUI.`);
+    await onOpen();
+    return identifyAccount(username, bedrock, javaLoc, location, wantedCwd, depth + 1, open);
+  }
+
+  // return the index
+  const idx = bedrock ? helper.findBedrockIndex(username) : helper.findJavaIndex(username);
+  return idx;
 }
+
 
 export function configureGeyserConfig(pluginDir: string, localPort: number) {
   const configPath = join(pluginDir, "Geyser/config.yml");

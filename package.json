@@ -11,9 +11,11 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
     "bedrock-protocol": "^3.45.0",
     "debug": "^4.4.1",
     "js-yaml": "^4.1.0",
+    "jsonwebtoken": "^9.0.3",
     "minecraft-data": "^3.89.0",
     "minecraft-protocol": "^1.57.0",
     "mineflayer": "^4.29.0",
