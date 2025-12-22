@@ -10,6 +10,10 @@ const {createBot} = require('../');
         forceViaProxy: true,
         profilesFolder: "./cache",
 
+        // specifies the local version to use when connecting to ViaProxy. 
+        // if not specified, the latest supported version will be used.
+        // version: "1.21.1"
+
         // viaProxyStderrCb: (data) => console.log(data.toString()),
         // viaProxyStdoutCb: (data) => console.log(data.toString()),
 
