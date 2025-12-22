@@ -163,8 +163,8 @@ export async function loadNmpConfig(opts: BotOptions): Promise<viaproxyTypes.Via
                    
                     playerCertificates: {
                         expireTimeMs: Date.parse(expiresOn),
-                        publicKey: publicKey.toString('utf-8').replace(/-----BEGIN PUBLIC KEY-----|-----END PUBLIC KEY-----|\n|\r/g, ''),
-                        privateKey: privateKey.toString('utf-8').replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n|\r/g, ''),
+                        publicKey: publicKey.toString().replace(/-----BEGIN PUBLIC KEY-----|-----END PUBLIC KEY-----|\n|\r/g, ''),
+                        privateKey: privateKey.toString().replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n|\r/g, ''),
                         publicKeySignature: publicKeySignature,
                         legacyPublicKeySignature: legacyPublicKeySignature
                     }
