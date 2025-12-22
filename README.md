@@ -46,6 +46,8 @@ const viaProxyOpts = {...}
 const bot = await createBot({...orgBotOpts, ...viaProxyOpts});
 ```
 
+More examples can be found in the `examples/` folder.
+
 ## API
 
 ### Types
