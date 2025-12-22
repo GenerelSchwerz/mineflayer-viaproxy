@@ -33,11 +33,13 @@ const cmpVersions = (first: string, second: string) => {
   return 0;
 };
 
-async function detectVersion(host: string | undefined, port: number | undefined) {
+async function detectVersion(host: string | undefined, port: number | undefined, localTargetVersion: string | undefined) {
   // try java first, then bedrock
 
   let ver;
   let bedrock = false;
+
+  const localVer = localTargetVersion ?? currentLatestVersion;
 
   host = host ?? "127.0.0.1";
 
@@ -120,7 +122,7 @@ async function detectVersion(host: string | undefined, port: number | undefined)
     // if any version is greater than current latest version
     let higherVerDetected = false;
     for (const v of sorted) {
-      const cmp = cmpVersions(v, currentLatestVersion);
+      const cmp = cmpVersions(v, localVer);
       if (cmp < 0) {
         higherVerDetected = true;
       } else if (cmp === 0) {
@@ -129,8 +131,8 @@ async function detectVersion(host: string | undefined, port: number | undefined)
       } else if (higherVerDetected) {
         // we found a lower version and a higher version, meaning multiple versions are supported.
         // this means we don't need viaProxy.
-        debug(`Multi-version detected. Using latest version ${currentLatestVersion}.`);
-        ver = currentLatestVersion;
+        debug(`Multi-version detected. Using ${!!localTargetVersion ? "target" : "latest"} version ${localVer}.`);
+        ver = localVer;
         break;
       }
     }
@@ -146,7 +148,7 @@ async function detectVersion(host: string | undefined, port: number | undefined)
 export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot = orgCreateBot) {
   let useViaProxy = options.forceViaProxy ?? false;
 
-  const { host: rHost, port: rPort, ver, bedrock } = await detectVersion(options.host, options.port);
+  const { host: rHost, port: rPort, ver, bedrock } = await detectVersion(options.host, options.port, options.version);
 
   useViaProxy = useViaProxy || (bedrock || !supportedVersions.pc.includes(ver));
 
@@ -164,10 +166,6 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
         delete bot.viaProxy; // this shouldn't be necessary, but why not.
       }
     };
-
-
-
-
 
     const wantedCwd = options.viaProxyWorkingDir ?? path.join(process.cwd(), "viaproxy");
 
@@ -207,11 +205,12 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
       cmd = cmd + " --target-version " + `"${latestBedrock}"`; // comment to auto detect version
     }
 
+    const localVer = options.version ?? currentLatestVersion;
     const newOpts = { ...options };
     // here is where we know we need to initialize ViaProxy.
     newOpts.host = "127.0.0.1";
     newOpts.port = port;
-    newOpts.version = currentLatestVersion;
+    newOpts.version = localVer;
 
     if (auth !== AuthType.ACCOUNT) {
       newOpts.auth = "offline";
@@ -219,12 +218,12 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
     }
     else {
       // newOpts.auth = "offline";
-      
+
       const initialCheck = await identifyAccount(options.username, bedrock, javaLoc, location, wantedCwd, 0, false);
       if (initialCheck === -1) {
         debug(`No account found for username "${options.username}". Replacing proxy saves.`);
-          const newSetup = await loadNmpConfig(newOpts);
-          await modifyProxySaves(wantedCwd, javaLoc, location, newSetup);
+        const newSetup = await loadNmpConfig(newOpts);
+        await modifyProxySaves(wantedCwd, javaLoc, location, newSetup);
       } else {
         debug(`Account found for username "${options.username}". No need to replace proxy saves.`);
       }

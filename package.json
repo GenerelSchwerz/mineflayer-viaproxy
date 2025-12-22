@@ -1,10 +1,14 @@
 {
   "name": "mineflayer-viaproxy",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "ViaProxy support for mineflayer.",
   "main": "dist/index.js",
   "author": "GenerelSchwerz",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GenerelSchwerz/mineflayer-viaproxy.git"
+  },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "mineflayer-viaproxy": "file:./",
