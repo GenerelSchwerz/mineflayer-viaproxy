@@ -279,7 +279,7 @@ export async function fetchGeyserJar(pluginDir: string, verAndBuild: string, fil
 export async function verifyJavaLoc(javaLoc: string): Promise<string> {
   // implementation: check if javaLoc exists and is executable
   if (!existsSync(javaLoc)) {
-    throw new Error(`Java executable not found at path: ${javaLoc}`);
+    throw new Error(`Java executable not found at path: ${javaLoc}. Try setting your javaPath in your options.`);
   }
   return javaLoc;
 }
