@@ -5,7 +5,7 @@ import { supportedVersions } from "minecraft-data";
 import { spawn } from "child_process";
 import { AuthType, ViaProxyOpts } from "./types";
 import { openAuthLogin } from "./openAuthMod";
-import { findOpenPort, getSupportedMCVersions, identifyAccount, verifyViaProxyLoc, modifyProxySaves } from "./utils";
+import { findOpenPort, getSupportedMCVersions, identifyAccount, verifyViaProxyLoc, modifyProxySaves, verifyJavaLoc } from "./utils";
 import path from "path";
 import { existsSync, mkdirSync } from "fs";
 
@@ -172,7 +172,11 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
     if (!existsSync(wantedCwd)) {
       await mkdirSync(wantedCwd, { recursive: true });
     }
+
     const javaLoc = options.javaPath ?? "java";
+    // sanity check for java.
+    await verifyJavaLoc(javaLoc);
+    
     const location = await verifyViaProxyLoc(wantedCwd, options.autoUpdate, javaLoc, options.viaProxyLocation);
 
     const port = options.localPort ?? (await findOpenPort());

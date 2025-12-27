@@ -275,6 +275,15 @@ export async function fetchGeyserJar(pluginDir: string, verAndBuild: string, fil
   return filepath;
 }
 
+
+export async function verifyJavaLoc(javaLoc: string): Promise<string> {
+  // implementation: check if javaLoc exists and is executable
+  if (!existsSync(javaLoc)) {
+    throw new Error(`Java executable not found at path: ${javaLoc}`);
+  }
+  return javaLoc;
+}
+
 export async function verifyViaProxyLoc(cwd: string, autoUpdate = true, javaLoc: string, location?: string): Promise<string> {
   if (!location || !existsSync(location)) {
     const javaVer = await checkJavaVersion(javaLoc);
