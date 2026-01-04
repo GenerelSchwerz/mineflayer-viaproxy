@@ -8,5 +8,7 @@ dist/
 
 logs
 
+tests
+
 examples/
 !examples/test.js

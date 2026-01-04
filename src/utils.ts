@@ -276,13 +276,33 @@ export async function fetchGeyserJar(pluginDir: string, verAndBuild: string, fil
 }
 
 
+// export async function verifyJavaLoc(javaLoc: string): Promise<string> {
+//   // implementation: check if javaLoc exists and is executable
+//   if (!existsSync(javaLoc)) {
+//     throw new Error(`Java executable not found at path: ${javaLoc}. Try setting your javaPath in your options.`);
+//   }
+//   return javaLoc;
+// }
+import { spawn } from 'child_process';
+
 export async function verifyJavaLoc(javaLoc: string): Promise<string> {
-  // implementation: check if javaLoc exists and is executable
-  if (!existsSync(javaLoc)) {
-    throw new Error(`Java executable not found at path: ${javaLoc}. Try setting your javaPath in your options.`);
-  }
-  return javaLoc;
+  return new Promise((resolve, reject) => {
+    // Attempt to spawn 'java -version' (or whatever path was provided)
+    // spawn automatically searches the system PATH if a simple command is given
+    const child = spawn(javaLoc, ['-version']);
+
+    // If the binary cannot be found or run, this 'error' event fires (e.g., ENOENT)
+    child.on('error', (err) => {
+      reject(new Error(`Java executable not found or invalid at: ${javaLoc}. Detail: ${err.message}`));
+    });
+
+    // If it closes, it means it ran successfully (even if java -version returns non-zero, it exists)
+    child.on('close', () => {
+      resolve(javaLoc);
+    });
+  });
 }
+
 
 export async function verifyViaProxyLoc(cwd: string, autoUpdate = true, javaLoc: string, location?: string): Promise<string> {
   if (!location || !existsSync(location)) {
