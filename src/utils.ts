@@ -433,7 +433,7 @@ export async function loadProxySaves(cwd: string, javaLoc: string, location: str
   if (!existsSync(loc)) {
     debug("No saves.json found. Initializing by running ViaProxy help command.");
     
-    // Append --help to the command string as requested
+    // Append --help to the command string
     const cmdString = `${VIA_PROXY_CMD(javaLoc, location, true)} --help`;
     debug(`Running command: ${cmdString}`);
 
@@ -445,31 +445,36 @@ export async function loadProxySaves(cwd: string, javaLoc: string, location: str
 
       const errorBuffer: string[] = [];
 
-      // Accumulate stderr exactly like your snippet
+      // 1. Log stdout in real-time
+      child.stdout.on("data", (data) => {
+        debug(`[ViaProxy Output]: ${data.toString().trim()}`);
+      });
+
+      // 2. Log stderr in real-time AND buffer it for error handling
       child.stderr.on("data", (data) => {
-        errorBuffer.push(data.toString());
+        const str = data.toString();
+        debug(`[ViaProxy Error]: ${str.trim()}`);
+        errorBuffer.push(str);
       });
 
       // Handle the process exit
       child.on("close", (code) => {
         if (code === 0) {
-          // Success: The process finished cleanly
+          debug("ViaProxy initialization finished successfully.");
           resolve();
         } else {
-          // Failure: Reject with the exit code and the captured logs
           const completeErrorMessage = errorBuffer.join('');
           reject(new Error(`ViaProxy failed to initialize (Exit Code: ${code}).\n\nStderr Output:\n${completeErrorMessage}`));
         }
       });
 
-      // Handle spawn errors (e.g. system permission issues)
+      // Handle spawn errors
       child.on("error", (err) => {
         const completeErrorMessage = errorBuffer.join('');
         reject(new Error(`ViaProxy process failed to start: ${err.message}.\n\nStderr Output:\n${completeErrorMessage}`));
       });
     });
 
-    // Verify file creation before parsing
     if (!existsSync(loc)) {
       throw new Error(`ViaProxy exited successfully, but 'saves.json' was not created at: ${loc}`);
     }
