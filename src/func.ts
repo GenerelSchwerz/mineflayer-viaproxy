@@ -184,7 +184,7 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
     const auth = options.localAuth ?? (options.auth !== "offline" || !options.auth ? AuthType.ACCOUNT : AuthType.NONE); // TODO maybe OPENAUTHMOD if we support by default?
 
     // perform ViaProxy setup.
-    let cmd = VIA_PROXY_CMD(javaLoc, location, {cli: false, javaArgs: options.javaArgs });
+    let cmd = VIA_PROXY_CMD(javaLoc, location, {cli: true, javaArgs: options.javaArgs });
     cmd = cmd + " --target-address " + `${rHost}:${rPort}`;
     cmd = cmd + " --bind-address " + `127.0.0.1:${port}`;
     cmd = cmd + " --auth-method " + auth;
