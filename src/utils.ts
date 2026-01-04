@@ -147,9 +147,9 @@ async function getViaProxyJarVersion(use8 = false): Promise<{ version: string; s
 }
 
 
-export async function getSupportedMCVersions(javaLoc: string, cwd: string, filename: string): Promise<string[]> {
+export async function getSupportedMCVersions(javaLoc: string, cwd: string, filename: string, javaArgs: string[]): Promise<string[]> {
   // run the jar file to get the supported versions.
-  const test = exec(`${VIA_PROXY_CMD(javaLoc, filename, true)} --list-versions`, { cwd: cwd });
+  const test = exec(`${VIA_PROXY_CMD(javaLoc, filename, {cli: true, javaArgs})} --list-versions`, { cwd: cwd });
 
   let versions: string[] = [];
 
@@ -406,10 +406,10 @@ export async function checkJavaVersion(javaLoc: string): Promise<number> {
   });
 }
 
-export async function openViaProxyGUI(javaLoc: string, fullpath: string, cwd: string) {
+export async function openViaProxyGUI(javaLoc: string, fullpath: string, cwd: string, javaArgs: string[]) {
   console.log("opening ViaProxy. This is done to add your account.\nSimply close the window when you're done to allow the mineflayer code to continue.");
 
-  const test = exec(VIA_PROXY_CMD(javaLoc, fullpath, false), { cwd: cwd });
+  const test = exec(VIA_PROXY_CMD(javaLoc, fullpath, {cli: false, javaArgs}), { cwd: cwd });
 
   await new Promise<void>((resolve, reject) => {
     test.on("close", (code) => {
@@ -427,14 +427,14 @@ export async function openViaProxyGUI(javaLoc: string, fullpath: string, cwd: st
 }
 
 
-export async function loadProxySaves(cwd: string, javaLoc: string, location: string): Promise<ViaProxySettings> {
+export async function loadProxySaves(cwd: string, javaLoc: string, location: string, javaArgs: string[]): Promise<ViaProxySettings> {
   const loc = join(cwd, "saves.json");
 
   if (!existsSync(loc)) {
     debug("No saves.json found. Initializing by running ViaProxy help command.");
     
     // Append --help to the command string
-    const cmdString = `${VIA_PROXY_CMD(javaLoc, location, true)} --help`;
+    const cmdString = `${VIA_PROXY_CMD(javaLoc, location, {cli: true, javaArgs})} --help`;
     debug(`Running command: ${cmdString}`);
 
     await new Promise<void>((resolve, reject) => {
@@ -488,9 +488,9 @@ export async function loadProxySaves(cwd: string, javaLoc: string, location: str
   return data;
 }
 
-export async function modifyProxySaves(cwd: string, javaLoc: string, location: string, data: ViaProxyV3Config) {
+export async function modifyProxySaves(cwd: string, javaLoc: string, javaArgs: string[], location: string, data: ViaProxyV3Config) {
   const loc = join(cwd, "saves.json");
-  const saves = await loadProxySaves(cwd, javaLoc, location);
+  const saves = await loadProxySaves(cwd, javaLoc, location, javaArgs);
 
   // assume v4 now.
   const { newest, key } = latestAccountsKey(saves);
@@ -626,6 +626,7 @@ export async function identifyAccount(
   username: string,
   bedrock: boolean,
   javaLoc: string,
+  javaArgs: string[],
   location: string,
   wantedCwd: string,
   depth = 0,
@@ -635,7 +636,7 @@ export async function identifyAccount(
 
   const onOpen = async () => {
     debug(`Opening GUI.\nLocation: ${location}`);
-    await openViaProxyGUI(javaLoc, location, wantedCwd);
+    await openViaProxyGUI(javaLoc,location, wantedCwd,  javaArgs);
   };
 
   // load saves.json, retry once via GUI if configured
@@ -643,7 +644,7 @@ export async function identifyAccount(
     depth,
     open,
     onOpen,
-    async () => await loadProxySaves(wantedCwd, javaLoc, location)
+    async () => await loadProxySaves(wantedCwd, javaLoc, location, javaArgs)
   ).catch(async (err) => {
     // match your original behavior: if load fails and open=false return -1, otherwise throw
     if (!open && depth === 0) {
@@ -667,7 +668,7 @@ export async function identifyAccount(
     }
     debug(`No users in saves.json found. Opening GUI.`);
     await onOpen();
-    return identifyAccount(username, bedrock, javaLoc, location, wantedCwd, depth + 1, open);
+    return identifyAccount(username, bedrock, javaLoc, javaArgs, location, wantedCwd, depth + 1, open);
   }
 
   // pick version-specific extraction + index finding
@@ -699,7 +700,7 @@ export async function identifyAccount(
 
     debug(`No ${label} account saved with the account name ${username}. Opening GUI.`);
     await onOpen();
-    return identifyAccount(username, bedrock, javaLoc, location, wantedCwd, depth + 1, open);
+    return identifyAccount(username, bedrock, javaLoc, javaArgs, location, wantedCwd, depth + 1, open);
   }
 
   // return the index

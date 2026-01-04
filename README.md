@@ -48,6 +48,11 @@ const bot = await createBot({...orgBotOpts, ...viaProxyOpts});
 
 More examples can be found in the `examples/` folder.
 
+## Debugging
+
+To debug this code, please set the environment variable `DEBUG` to include `mineflayer-viaproxy`.
+Mi
+
 ## API
 
 ### Types
@@ -74,6 +79,7 @@ export enum AuthType {
 export interface ViaProxyOpts {
     forceViaProxy?: boolean;
     javaPath?: string;
+    javaArgs?: string[];
     localPort?: number;
     localAuth?: AuthType;
     viaProxyLocation?: string;
@@ -88,10 +94,11 @@ export interface ViaProxyOpts {
 | Name                 | Type                      | Default           | Description                                                                                                                           |
 | -------------------- | ------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `forceViaProxy`      | boolean                   | false             | Whether or not to force the use of ViaProxy. If set to true, it will always use ViaProxy regardless of the server version.            |
-| `javaPath`           | string                    | `"java"`          | The path to the java executable.                                                                                                      |
+| `javaPath`           | string                    | `"java"`          | The path to the java executable. |
+| `javaArgs`           | string[]                  | `[]`              | Raw Java arguments to be passed directly.
 | `localPort`          | number                    | *auto determined* | The port to listen on for the local server. If none is specified, it will automatically locate an open port for you on your computer. |
 | `localAuth`          | `AuthType`                | `AuthType.NONE`   | The authentication type to use for the local server.                                                                                  |
-| `viaProxyLocation`   | string                    | ""                | The location of the ViaVersion proxy jar. If none specified, it will download automatically to the CWD + `viaproxy`.                  |
+| `viaProxyLocation`   | string                    | ""                | The location of the ViaVersion proxy jar. If none specified, it will download automatically to the CWD + `viaproxy`. |
 | `viaProxyWorkingDir` | string                    | ""                | The working directory for the ViaVersion proxy. If none specified, it will use the CWD + `viaproxy`.                                  |
 | `autoUpdate`         | boolean                   | true              | Whether or not to automatically update the ViaVersion proxy.                                                                          |
 | `viaProxyConfig`     | `Partial<ViaProxyConfig>` | undefined         | Configuration options for ViaProxy.                                                                                                   |

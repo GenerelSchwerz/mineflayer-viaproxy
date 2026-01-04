@@ -7,6 +7,7 @@ export enum AuthType {
 export interface ViaProxyOpts {
     forceViaProxy?: boolean;
     javaPath?: string;
+    javaArgs?: string[];
     localPort?: number;
     localAuth?: AuthType,
     viaProxyLocation?: string;

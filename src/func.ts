@@ -174,6 +174,7 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
     }
 
     const javaLoc = options.javaPath ?? "java";
+    const javaArgs = options.javaArgs ?? [];
     // sanity check for java.
     await verifyJavaLoc(javaLoc);
     
@@ -183,7 +184,7 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
     const auth = options.localAuth ?? (options.auth !== "offline" || !options.auth ? AuthType.ACCOUNT : AuthType.NONE); // TODO maybe OPENAUTHMOD if we support by default?
 
     // perform ViaProxy setup.
-    let cmd = VIA_PROXY_CMD(javaLoc, location);
+    let cmd = VIA_PROXY_CMD(javaLoc, location, {cli: false, javaArgs: options.javaArgs });
     cmd = cmd + " --target-address " + `${rHost}:${rPort}`;
     cmd = cmd + " --bind-address " + `127.0.0.1:${port}`;
     cmd = cmd + " --auth-method " + auth;
@@ -199,7 +200,7 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
 
     if (bedrock) {
       // for now, we'll just assume latest bedrock version.
-      const supported = await getSupportedMCVersions(javaLoc, wantedCwd, location);
+      const supported = await getSupportedMCVersions(javaLoc, wantedCwd, location, javaArgs);
       const latestBedrock = supported.find((x) => x.includes("Bedrock"));
       if (latestBedrock == null) {
         throw new Error("Failed to find latest Bedrock version.");
@@ -223,16 +224,16 @@ export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot =
     else {
       // newOpts.auth = "offline";
 
-      const initialCheck = await identifyAccount(options.username, bedrock, javaLoc, location, wantedCwd, 0, false);
+      const initialCheck = await identifyAccount(options.username, bedrock, javaLoc, javaArgs, location, wantedCwd, 0, false);
       if (initialCheck === -1) {
         debug(`No account found for username "${options.username}". Replacing proxy saves.`);
         const newSetup = await loadNmpConfig(newOpts);
-        await modifyProxySaves(wantedCwd, javaLoc, location, newSetup);
+        await modifyProxySaves(wantedCwd, javaLoc, javaArgs, location, newSetup);
       } else {
         debug(`Account found for username "${options.username}". No need to replace proxy saves.`);
       }
 
-      const idx = await identifyAccount(options.username, bedrock, javaLoc, location, wantedCwd, 0, true);
+      const idx = await identifyAccount(options.username, bedrock, javaLoc, javaArgs, location, wantedCwd, 0, true);
       debug(`Identified account index for username "${options.username}" is ${idx}.`);
       cmd = cmd + " --proxy-online-mode " + "true";
       cmd = cmd + " --minecraft-account-index" + ` ${idx}`;
