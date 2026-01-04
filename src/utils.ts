@@ -426,22 +426,55 @@ export async function openViaProxyGUI(javaLoc: string, fullpath: string, cwd: st
   });
 }
 
+
 export async function loadProxySaves(cwd: string, javaLoc: string, location: string): Promise<ViaProxySettings> {
   const loc = join(cwd, "saves.json");
+
   if (!existsSync(loc)) {
+    debug("No saves.json found. Initializing by running ViaProxy help command.");
+    
+    // Append --help to the command string as requested
+    const cmdString = `${VIA_PROXY_CMD(javaLoc, location, true)} --help`;
+    debug(`Running command: ${cmdString}`);
 
-    // dummy run to create the saves.json file.
-    debug("No saves.json found. Creating one by running ViaProxy CLI.");
-    debug(`Running command: ${VIA_PROXY_CMD(javaLoc, location, true)}`);
-    const process = exec(VIA_PROXY_CMD(javaLoc, location, true), { cwd: cwd });
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn(cmdString, { 
+        cwd, 
+        shell: true 
+      });
 
-    await new Promise((resolve) => setTimeout(resolve, 3000)); // wait 3 seconds for the file to be created.
+      const errorBuffer: string[] = [];
 
-    process.kill();
+      // Accumulate stderr exactly like your snippet
+      child.stderr.on("data", (data) => {
+        errorBuffer.push(data.toString());
+      });
 
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 2000)); // wait 2 seconds to ensure file is written.
+      // Handle the process exit
+      child.on("close", (code) => {
+        if (code === 0) {
+          // Success: The process finished cleanly
+          resolve();
+        } else {
+          // Failure: Reject with the exit code and the captured logs
+          const completeErrorMessage = errorBuffer.join('');
+          reject(new Error(`ViaProxy failed to initialize (Exit Code: ${code}).\n\nStderr Output:\n${completeErrorMessage}`));
+        }
+      });
+
+      // Handle spawn errors (e.g. system permission issues)
+      child.on("error", (err) => {
+        const completeErrorMessage = errorBuffer.join('');
+        reject(new Error(`ViaProxy process failed to start: ${err.message}.\n\nStderr Output:\n${completeErrorMessage}`));
+      });
+    });
+
+    // Verify file creation before parsing
+    if (!existsSync(loc)) {
+      throw new Error(`ViaProxy exited successfully, but 'saves.json' was not created at: ${loc}`);
+    }
+
     const data = JSON.parse(readFileSync(loc, "utf-8"));
-
     return data;
   }
 
