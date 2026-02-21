@@ -50,8 +50,38 @@ More examples can be found in the `examples/` folder.
 
 ## Debugging
 
-To debug this code, please set the environment variable `DEBUG` to include `mineflayer-viaproxy`.
-Mi
+This package uses the [debug](https://www.npmjs.com/package/debug) library for logging. To enable debug output, set the `DEBUG` environment variable to include `mineflayer-viaproxy`.
+
+**Examples:**
+
+Enable all mineflayer-viaproxy logs:
+```bash
+# On Windows (PowerShell)
+$env:DEBUG = "mineflayer-viaproxy:*"; node your-script.js
+
+# On Windows (Command Prompt)
+set DEBUG=mineflayer-viaproxy:* && node your-script.js
+
+# On macOS/Linux
+DEBUG=mineflayer-viaproxy:* node your-script.js
+```
+
+Enable specific module logs:
+```bash
+# macOS/Linux
+DEBUG=mineflayer-viaproxy:openAuthMod node your-script.js
+
+# Windows (PowerShell)
+$env:DEBUG = "mineflayer-viaproxy:openAuthMod"; node your-script.js
+```
+
+Enable logs from multiple packages:
+```bash
+# macOS/Linux
+DEBUG=mineflayer-viaproxy:*,minecraft-protocol node your-script.js
+```
+
+For more information on the debug library and its patterns, see the [debug documentation](https://github.com/debug-js/debug).
 
 ## API
 
