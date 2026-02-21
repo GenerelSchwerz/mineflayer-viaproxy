@@ -31,6 +31,13 @@ npm install mineflayer-viaproxy
 
 ## Usage
 
+
+### Basic usage is simple. Just use `createBot` from this package instead of `mineflayer.createBot`.
+
+Note! `createBot` is now asynchronous and must be awaited. This is because it needs to set up the ViaProxy before the bot can connect.
+
+Additionally: the username must now STRICTLY match the in-game username of the account you want to use. This is because ViaProxy needs to authenticate with Mojang/Microsoft using that account's credentials, and the bot needs to use that account's credentials to connect to the server through ViaProxy.
+
 ```js
 const { createBot } = require('mineflayer-viaproxy')
 
