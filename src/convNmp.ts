@@ -39,6 +39,10 @@ export async function* extractCacheNames(opts: BotOptions) {
     }
 }
 
+function formatUUID(uuid: string): string {
+    if (uuid.includes('-')) return uuid; // Return as-is if already formatted
+    return uuid.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, "$1-$2-$3-$4-$5");
+}
 
 export async function loadNmpConfig(opts: BotOptions): Promise<viaproxyTypes.ViaProxyV3Config> {
 
@@ -80,8 +84,16 @@ export async function loadNmpConfig(opts: BotOptions): Promise<viaproxyTypes.Via
     const mca = cacheMap['mca'];
     const mcAccessToken = mca.mca.access_token;
     const mcExpireTimeMs = mca.mca.obtainedOn + mca.mca.expires_in * 1000;
-    const mcProfileId = mca.mca.username;   
-    const mcProfileName = sanitizedOpts.username      
+    // const mcProfileId = mca.mca.username;   
+  
+    const mcProfileId = formatUUID(mcMgr.profile.id);   
+
+    // if we want to keep compatibility with using the username of whatever is provided instead of actual name,
+    // then this should be sanitizedOpts.username instead of mcMgr.profile.name. 
+    // But it seems more correct to use the actual profile name, since the username field is really just for display and doesn't have to be unique or anything.
+    const mcProfileName = mcMgr.profile.name; 
+    // const mcProfileName = sanitizedOpts.username;
+
 
     // --- from xbl-cache.json ---
     const xbl = cacheMap['xbl'];
