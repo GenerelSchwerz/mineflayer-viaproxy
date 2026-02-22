@@ -109,6 +109,8 @@ async function detectVersion(host: string | undefined, port: number | undefined,
     throw new Error("Failed to detect version.");
   }
 
+  // debug("version detected: " + ver);
+
   const regex = /1\.\d+(\.\d+)?/g;
   const match = ver.match(regex);
 
@@ -148,9 +150,13 @@ async function detectVersion(host: string | undefined, port: number | undefined,
 export async function createBot(options: BotOptions & ViaProxyOpts, oCreateBot = orgCreateBot) {
   let useViaProxy = options.forceViaProxy ?? false;
 
-  const { host: rHost, port: rPort, ver, bedrock } = await detectVersion(options.host, options.port, options.version);
+  let ver: string;
+  const { host: rHost, port: rPort, ver: detectedVer, bedrock } = await detectVersion(options.host, options.port, options.version);
 
-  useViaProxy = useViaProxy || (bedrock || !supportedVersions.pc.includes(ver));
+  useViaProxy = useViaProxy || (bedrock || !supportedVersions.pc.includes(detectedVer));
+
+  if (useViaProxy) { ver = detectedVer; }
+  else ver = options.version ?? detectedVer;
 
   let bot!: Bot;
 

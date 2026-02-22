@@ -22,7 +22,7 @@
     "jsonwebtoken": "^9.0.3",
     "minecraft-data": "^3.89.0",
     "minecraft-protocol": "^1.57.0",
-    "mineflayer": "^4.29.0",
+    "mineflayer": "git+https://github.com/GenerelSchwerz/mineflayer.git",
     "uuid": "^13.0.0"
   },
   "scripts": {
