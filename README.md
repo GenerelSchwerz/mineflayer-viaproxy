@@ -1,158 +1,198 @@
 # mineflayer-viaproxy
 
 [![NPM version](https://img.shields.io/npm/v/mineflayer-viaproxy.svg)](http://npmjs.com/package/mineflayer-viaproxy)
+[![Ko-fi](https://img.shields.io/badge/support-Ko--fi-ff5e5b?logo=kofi\&logoColor=white)](https://ko-fi.com/Generel)
+[![Discord](https://img.shields.io/badge/community-Discord-5865F2?logo=discord\&logoColor=white)](https://discord.gg/GaAkvq84Zh)
 
-A mineflayer plugin that allows you to connect to a server through a ViaVersion proxy.
+A **Mineflayer plugin for connecting bots to Minecraft versions not yet supported by Mineflayer**, by routing traffic through a ViaProxy/ViaVersion layer.
 
-Why? Because I'm tired of people asking for version updates.
+If you’ve ever been blocked by version mismatches—this is the workaround.
 
-If you have issues, join [here](https://discord.gg/g3w4G88y) for support.
-Alternatively, [here](https://discord.gg/prismarinejs-413438066984747026) for general mineflayer support.
+---
 
+## 🚀 Why you would use this
 
-### Prerequisites
-* Node.js v16 or higher
-* Java Runtime Environment (JRE) installed and accessible via command line, preferably version 17 or higher.
+Mineflayer only supports specific Minecraft protocol versions. When Mojang releases a new update, there’s usually a delay before Mineflayer catches up.
 
-### TODOS
+This plugin removes that limitation by placing a translation layer between your bot and the server:
 
-* [x] Support bedrock versions
-* [x] Support adding accounts to ViaProxy gracefully.
-* [x] Make fix for prismarine-registry more robust (see patches)
-* [ ] Add support for more ViaVersion options
-* [x] Add support for more ViaProxy options
-* [x] Support Python
+```
+Mineflayer bot → ViaProxy → ViaVersion → Server
+```
 
-## Installation
+### Without this plugin
+
+* Your bot can only join versions Mineflayer explicitly supports
+
+### With this plugin
+
+* Your bot can connect to **newer (and older) versions immediately**, without waiting for updates
+
+---
+
+## ✅ What you get
+
+* **Connect to newer Minecraft versions**
+
+  * Works even when Mineflayer hasn’t updated yet
+  * ViaVersion handles protocol translation behind the scenes
+
+* **Cross-version compatibility**
+
+  * Use one bot across multiple server versions
+
+* **(Limited) Bedrock support**
+
+  * Via ViaProxy + ViaBedrock
+  * Works for basic connectivity and some gameplay
+  * ⚠️ Not feature-complete or fully stable
+
+* **Automatic proxy management**
+
+  * Downloads and runs ViaProxy automatically
+  * Handles ports and lifecycle for you
+
+* **Minimal code changes**
+
+  * Drop-in replacement for `mineflayer.createBot`
+
+---
+
+## 🤔 When to use this
+
+Use this if:
+
+* You want to connect to the **latest Minecraft version right now**
+* You need your bot to work across **multiple versions**
+* You don’t want to wait for Mineflayer updates
+* You’re experimenting with **Java ↔ Bedrock bridging**
+
+Avoid this if:
+
+* You need **perfect protocol accuracy**
+* You depend on **low-level packet behavior**
+* You’re already on a fully supported version and don’t need translation
+
+---
+
+## 📦 Installation
 
 ```bash
 npm install mineflayer-viaproxy
 ```
 
-## Usage
+---
 
+## ⚙️ Usage
 
-### Basic usage is simple. Just use `createBot` from this package instead of `mineflayer.createBot`.
+### Basic usage
 
-Note! `createBot` is now asynchronous and must be awaited. This is because it needs to set up the ViaProxy before the bot can connect.
-
-Additionally: the username must now STRICTLY match the in-game username of the account you want to use. This is because ViaProxy needs to authenticate with Mojang/Microsoft using that account's credentials, and the bot needs to use that account's credentials to connect to the server through ViaProxy.
+The only real difference: bot creation is now **async**.
 
 ```js
 const { createBot } = require('mineflayer-viaproxy')
 
-// only difference is that this must be awaited now.
-const bot = await createBot({...})
-
-// if you want to pass viaProxy options, it'd be like so:
-
-const orgBotOpts = {...}
-const viaProxyOpts = {...}
-
-// same object. 
-const bot = await createBot({...orgBotOpts, ...viaProxyOpts});
+const bot = await createBot({
+  host: 'example.com',
+  username: 'your_account_email_or_username'
+})
 ```
 
-More examples can be found in the `examples/` folder.
+---
 
-## Debugging
+### ⚠️ Important differences from Mineflayer
 
-This package uses the [debug](https://www.npmjs.com/package/debug) library for logging. To enable debug output, set the `DEBUG` environment variable to include `mineflayer-viaproxy`.
+* `createBot` is **async**
+
+  * It must start and configure ViaProxy before connecting
+
+* `username must match the actual account`
+
+  * ViaProxy authenticates using real credentials
+  * Incorrect values will fail authentication
+
+---
+
+### Advanced usage
+
+```js
+const { createBot } = require('mineflayer-viaproxy')
+
+const bot = await createBot({
+  host: 'example.com',
+  username: 'your_account',
+
+  // ViaProxy options
+  forceViaProxy: true,
+  autoUpdate: true,
+  localPort: 25570
+})
+```
+
+---
+
+## 🧠 How it works
+
+Normally:
+
+```
+Mineflayer → Server
+```
+
+With this plugin:
+
+```
+Mineflayer → ViaProxy (local) → Protocol translation → Server
+```
+
+This enables:
+
+* Version bridging (new ↔ old)
+* Packet translation
+* Cross-edition support (via ViaBedrock)
+
+---
+
+## ⚠️ Limitations
+
+* Not all packets translate perfectly
+* Some mechanics behave differently across versions
+* Bedrock support is:
+
+  * Experimental
+  * Limited by ViaBedrock
+* Slight latency overhead due to proxy layer
+
+---
+
+## 🛠 Debugging
+
+This package uses the `debug` library for logging. To enable debug output, set the `DEBUG` environment variable to include `mineflayer-viaproxy`.
 
 **Examples:**
 
-Enable all mineflayer-viaproxy logs:
-```bash
-# On Windows (PowerShell)
-$env:DEBUG = "mineflayer-viaproxy:*"; node your-script.js
+Enable all logs:
 
-# On Windows (Command Prompt)
-set DEBUG=mineflayer-viaproxy:* && node your-script.js
-
-# On macOS/Linux
-DEBUG=mineflayer-viaproxy:* node your-script.js
-```
-
-Enable specific module logs:
 ```bash
 # macOS/Linux
-DEBUG=mineflayer-viaproxy:openAuthMod node your-script.js
+DEBUG=mineflayer-viaproxy:* node your-script.js
 
 # Windows (PowerShell)
-$env:DEBUG = "mineflayer-viaproxy:openAuthMod"; node your-script.js
+$env:DEBUG="mineflayer-viaproxy:*"; node your-script.js
 ```
 
-Enable logs from multiple packages:
+Enable specific module:
+
 ```bash
-# macOS/Linux
-DEBUG=mineflayer-viaproxy:*,minecraft-protocol node your-script.js
+DEBUG=mineflayer-viaproxy:openAuthMod node your-script.js
 ```
 
-For more information on the debug library and its patterns, see the [debug documentation](https://github.com/debug-js/debug).
+---
 
-## API
+## 🔥 Why this exists
 
-### Types
+Mineflayer version support will always lag behind Mojang releases.
 
-#### `AuthType`
+This plugin exists so you don’t have to wait.
 
-```ts
-export enum AuthType {
-    NONE = "NONE",
-    OPENAUTHMOD = "OPENAUTHMOD",
-    ACCOUNT = "ACCOUNT",
-}
 ```
-
-| Name          | Value           | Description                                    |
-| ------------- | --------------- | ---------------------------------------------- |
-| `NONE`        | `"NONE"`        | No authentication                              |
-| `OPENAUTHMOD` | `"OPENAUTHMOD"` | OpenAuthMod authentication                     |
-| `ACCOUNT`     | `"ACCOUNT"`     | Account authentication (requires manual setup) |
-
-#### `ViaProxyOpts`
-
-```ts
-export interface ViaProxyOpts {
-    forceViaProxy?: boolean;
-    javaPath?: string;
-    javaArgs?: string[];
-    localPort?: number;
-    localAuth?: AuthType;
-    viaProxyLocation?: string;
-    viaProxyWorkingDir?: string;
-    autoUpdate?: boolean;
-    viaProxyConfig?: Partial<ViaProxyConfig>;
-    viaProxyStdoutCb?: (data: any) => void;
-    viaProxyStderrCb?: (data: any) => void;
-}
-```
-
-| Name                 | Type                      | Default           | Description                                                                                                                           |
-| -------------------- | ------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `forceViaProxy`      | boolean                   | false             | Whether or not to force the use of ViaProxy. If set to true, it will always use ViaProxy regardless of the server version.            |
-| `javaPath`           | string                    | `"java"`          | The path to the java executable. |
-| `javaArgs`           | string[]                  | `[]`              | Raw Java arguments to be passed directly.
-| `localPort`          | number                    | *auto determined* | The port to listen on for the local server. If none is specified, it will automatically locate an open port for you on your computer. |
-| `localAuth`          | `AuthType`                | `AuthType.NONE`   | The authentication type to use for the local server.                                                                                  |
-| `viaProxyLocation`   | string                    | ""                | The location of the ViaVersion proxy jar. If none specified, it will download automatically to the CWD + `viaproxy`. |
-| `viaProxyWorkingDir` | string                    | ""                | The working directory for the ViaVersion proxy. If none specified, it will use the CWD + `viaproxy`.                                  |
-| `autoUpdate`         | boolean                   | true              | Whether or not to automatically update the ViaVersion proxy.                                                                          |
-| `viaProxyConfig`     | `Partial<ViaProxyConfig>` | undefined         | Configuration options for ViaProxy.                                                                                                   |
-| `viaProxyStdoutCb`   | `(data: any) => void`     | undefined         | A callback for the stdout of the ViaVersion proxy.                                                                                    |
-| `viaProxyStderrCb`   | `(data: any) => void`     | undefined         | A callback for the stderr of the ViaVersion proxy.                                                                                    |
-
-#### `ViaProxyConfig`
-
-```ts
-export interface ViaProxyConfig {
-    backendProxyUrl: string;
-    [key: string]: string | number | boolean;
-}
-```
-
-| Name              | Type    | Description                                                                         |          |                                                |
-| ----------------- | ------- | ----------------------------------------------------------------------------------- | -------- | ---------------------------------------------- |
-| `backendProxyUrl` | string  | The URL of the backend proxy to connect to. If none specified, it will not use one. |          |                                                |
-| `[key: string]`   | `string \| number \| boolean` | Additional configuration options for ViaProxy. |
-
